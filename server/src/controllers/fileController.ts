@@ -48,7 +48,17 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
     await fs.mkdir(path.dirname(finalPath), { recursive: true });
 
     // Move file
-    await fs.rename(file.path, finalPath);
+    try {
+      await fs.rename(file.path, finalPath);
+    } catch (err: any) {
+      if (err.code === 'EXDEV') {
+        // Fallback for cross-device move
+        await fs.copyFile(file.path, finalPath);
+        await fs.unlink(file.path);
+      } else {
+        throw err;
+      }
+    }
 
     // Save metadata
     const newFile = await prisma.file.create({
